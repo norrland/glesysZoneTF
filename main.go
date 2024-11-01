@@ -37,7 +37,7 @@ func parseRecordtoTF(record gozone.Record, tfDID string) (string, error) {
 	if tfDID != "" {
 		domain = tfDID
 	} else {
-		domain = record.Origin
+		domain = strings.TrimSuffix(record.Origin, ".")
 	}
 
 	// fetch the host part from the fqdn
