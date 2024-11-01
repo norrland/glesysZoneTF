@@ -21,7 +21,8 @@ func check(e error) {
 	}
 }
 
-func parseRecordtoTF(record gozone.Record) (string, error) {
+func parseRecordtoTF(record gozone.Record, tfDID string) (string, error) {
+	// create a random string for tf resource id
 	r := randomstring.HumanFriendlyString(6)
 	id := "dns-" + r
 
@@ -29,7 +30,21 @@ func parseRecordtoTF(record gozone.Record) (string, error) {
 	if datat == record.Origin {
 		datat = "@"
 	}
+
+	domain := ""
+
+	// set domain for the TF resource to the specified string
+	if tfDID != "" {
+		domain = tfDID
+	} else {
+		domain = record.Origin
+	}
+
+	// fetch the host part from the fqdn
+	host, _, _ := strings.Cut(record.DomainName, "."+record.Origin)
+	fmt.Println("DEBUG: host", host)
 	fmt.Println("DEBUG: domainname", record.DomainName)
+
 	return fmt.Sprintf(`
 resource "glesys_dnsdomain_record" "%s" {
 	domain = "%s"
@@ -38,7 +53,7 @@ resource "glesys_dnsdomain_record" "%s" {
 	ttl    = %d
 	type   = "%s"
 } `,
-		id, record.Origin, datat, record.DomainName, record.TimeToLive, record.Type), nil
+		id, domain, datat, host, record.TimeToLive, record.Type), nil
 
 }
 
@@ -64,6 +79,8 @@ func main() {
 
 	outFile := flag.String("out", "domain-out.txt", "Output file for domain export")
 	outTf := flag.String("tf", "dns.tf", "Terraform output")
+
+	tfDomainResourceID := flag.String("tfdomainid", "", "Reference to an existing Terraform resource or datasource")
 	//diskType := os.Args[3]
 	flag.Parse()
 
@@ -89,7 +106,7 @@ func main() {
 			if record.Type.String() == "SOA" {
 				continue
 			} else {
-				rec, err := parseRecordtoTF(record)
+				rec, err := parseRecordtoTF(record, *tfDomainResourceID)
 				check(err)
 				tfData = append(tfData, rec)
 			}
